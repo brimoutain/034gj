@@ -88,17 +88,25 @@ public class BaseObject : MonoBehaviour
     //碎裂效果
     public void BreakEffect()
     {
-        GameObject obj;
-        for (int i = 0; i < 10; i++)
+        //等待填具体数字
+        for(int i= 0; i < 10; i++)
         {
-            obj = Instantiate(smallPrefab, transform.position, Quaternion.identity);
-            Vector2 randomDirection = new Vector2(
+            StartCoroutine(BornAndDestroy());
+        }
+    }
+
+    IEnumerator BornAndDestroy()
+    {
+        GameObject instance = Instantiate(smallPrefab, transform.position, Quaternion.identity);
+        Vector2 randomDirection = new Vector2(
             UnityEngine.Random.Range(-1f, 1f),
             UnityEngine.Random.Range(-1f, 1f)
             ).normalized;
-            obj.GetComponent<Rigidbody2D>().AddForce(randomDirection * forceStrength, ForceMode2D.Impulse);
-        }
-        //待摧毁obj，考虑用什么函数
+        instance.GetComponent<Rigidbody2D>().AddForce(randomDirection * forceStrength, ForceMode2D.Impulse);
+        // 等待0.3秒
+        yield return new WaitForSeconds(.3f);
+
+        Destroy(instance);
     }
 
     //缓动变色
