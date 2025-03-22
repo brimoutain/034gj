@@ -1,23 +1,63 @@
+using DG.Tweening;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.UI;
 using static UnityEngine.ParticleSystem;
 
 public class GameManager : MonoBehaviour
 {
-    #region GetComponent
+    #region Component
     private AudioSource audioPlayer;
     #endregion
 
-    private bool isIntroducted = true;//ÅÐ¶ÏÊÇ·ñ½áÊø½Ì³Ì£¬ÕâÀïÏÈÄ¬ÈÏ½áÊø
-    private float startTime;//¿ªÊ¼²¥·ÅÒôÀÖµÄÊ±¼ä
-    private float nowTime;//µ±Ç°Ê±¼ä£¬ÓÃÓÚÅÐ¶ÏÉú³ÉÔ¤ÖÆÌå
+    #region Intrudction
+    GameObject iTringle;
+
+    Transform outPoint;
+    Transform stopPoint;
+
+    [SerializeField] private float flyduration;//Æ®ï¿½ï¿½È¥ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½
+    bool isFinished = false;
+    [SerializeField] private float clearduration;//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½
+
+    public GameObject title;
+
+    public float moveSpeed = 2f;     // ï¿½Æ¶ï¿½ï¿½Ù¶ï¿½
+    public float changeInterval = 3f; // ï¿½ï¿½ï¿½ï¿½ä»¯ï¿½ï¿½ï¿½
+
+    private Vector2 randomDirection;
+    #endregion
+
+    #region ExcelReader
+
+    public List<CodeBlockExcelReader.ExcelData> codeBlockData;
+    public List<PatchExcelReader.ExcelData> patchData;
+    public string codeBlockType;
+    public float codeJudgmentTime;
+    public string codeBlockID;
+    public string patchType;
+    public float patchJudgmentTime;
+    public string patchID;
+    public int codeBlockCurrentLine = 1;
+    public int patchCurrentLine = 1;
+
+    bool end = false;
+    #endregion
+
+
+    private bool isIntroducted = true;//ï¿½Ð¶ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½ï¿½Ì³Ì£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¬ï¿½Ï½ï¿½ï¿½ï¿½
+    private float startTime;//ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Öµï¿½Ê±ï¿½ï¿½
+    private float nowTime;//ï¿½ï¿½Ç°Ê±ï¿½ä£¬ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½ï¿½Ô¤ï¿½ï¿½ï¿½ï¿½
 
     [SerializeField] private GameObject tringle;
     [SerializeField] private GameObject circle;
+    [SerializeField] private GameObject codeBlockTringle;
+    [SerializeField] private GameObject codeBlockCircle;
 
-    //Í¼ÐÎ³öÏÖµÄÎ»ÖÃ
+    //Í¼ï¿½Î³ï¿½ï¿½Öµï¿½Î»ï¿½ï¿½
     [SerializeField] private Transform patchBornPos;
 
 
@@ -35,103 +75,187 @@ public class GameManager : MonoBehaviour
     private void Awake()
     {
         audioPlayer = GetComponent<AudioSource>();
+        outPoint.position = new Vector3(0, -5.5f, 0);
+        stopPoint.position = new Vector3(0,-3.75f,0);
     }
-    void Start()//¶ÁÈ¡ExcelÊý¾Ý£¬¿ªÊ¼ÓÎÏ·
+    void Start()//ï¿½ï¿½È¡Excelï¿½ï¿½ï¿½Ý£ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½Ï·
     {
-        LoadCodeBlockFromFile("Assets/Resources/Block.xlsx");
-        LoadPatchFromFile("Assets/Resources/Patch.xlsx");
+        LoadCodeBlockFromFile("Assets/Resources/2.xlsx");
+        LoadPatchFromFile("Assets/Resources/3.xlsx");
+        AudioClip audioClip = Resources.Load<AudioClip>("Assets/Resources/");
+        //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ú²ï¿½ï¿½ï¿½ï¿½ï¿½Ð§
+        GameObject game = Instantiate(tringle, outPoint);
+        game.GetComponent<BaseObject>().Effect(2);
+        //
         StartGame();
     }
     public void StartGame()
     {
-        //¿ªÊ¼ÓÎÏ·Ê±£¬²¥·ÅµÚÒ»¸ö¶¯»­£ºÒ»¸öÈý½ÇÐÎÏòÉÏÆ¯¸¡£¨¹ý³ÌÖÐËæ»ú×óÓÒÒÆ¶¯£©µ½Ö¸¶¨Î»ÖÃ
-        //µÚÒ»¸ö¶¯»­½áÊøÊ±²¥·ÅµÚ¶þ¸ö¶¯»­£¨±êÌâÍ¸Ã÷¶ÈÓÉ0Öð½¥±ä¿É¼û £©ºÍ µÚÈý¸ö¶¯»­£ºÈý½ÇÐÎÐü¸¡£¨¹ý³ÌÖÐËæ»úÉÏÏÂ×óÓÒÒÆ¶¯£©£¬±»µã»÷Ê±ÖÐ¶ÏµÚ¶þ¸ö¶¯»­£¬²¥·ÅµÚËÄ¸ö¶¯»­
-        //µÚ¶þ¸ö¶¯»­½áÊøÊ±ÖÐ¶ÏµÚÈý¸ö¶¯»­£¬²¥·ÅµÚËÄ¸ö¶¯»­£¨±êÌâÓÉµ±Ç°Í¸Ã÷¶ÈÖð½¥±äÎª0£©ÇÒÈý½ÇÐÎÆ½ÒÆµ½ÅÐ¶¨ÇøÖÐ¼ä
-        //µÚËÄ¸ö¶¯»­½áÊøÊ±µ÷ÓÃTutorial()£¬½øÈë½Ì³Ì
+        FirstAnim();
+        #region 1
+        //ï¿½ï¿½Ê¼ï¿½ï¿½Ï·Ê±ï¿½ï¿½ï¿½ï¿½ï¿½Åµï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ¯ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ¶ï¿½ï¿½ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½Î»ï¿½ï¿½
+        //ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ÅµÚ¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½0ï¿½ð½¥±ï¿½É¼ï¿½ ï¿½ï¿½ï¿½ï¿½
+        //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½Ð¶ÏµÚ¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Åµï¿½ï¿½Ä¸ï¿½ï¿½ï¿½ï¿½ï¿½
+        //ï¿½Ú¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½Ð¶Ïµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Åµï¿½ï¿½Ä¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Éµï¿½Ç°Í¸ï¿½ï¿½ï¿½ï¿½ï¿½ð½¥±ï¿½Îª0ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ½ï¿½Æµï¿½ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½Ð¼ï¿½
+        //ï¿½ï¿½ï¿½Ä¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½Tutorial()ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì³ï¿½
+        #endregion
     }
+
+    //ï¿½ï¿½ï¿½ï¿½Æ¶ï¿½ï¿½Ä·ï¿½ï¿½ï¿½
+    //IEnumerator ChangeDirection()
+    //{
+    //    while (true)
+    //    {
+    //        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ò£¨µï¿½Î»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    //        randomDirection = UnityEngine.Random.insideUnitCircle.normalized;
+    //        yield return new WaitForSeconds(changeInterval);
+    //    }
+    //}
+
+    //ï¿½Ö¶ï¿½ï¿½ï¿½ï¿½ï¿½Â·ï¿½ï¿½ï¿½ï¿½
+    private void FirstAnim()
+    {
+        iTringle = Instantiate(tringle, outPoint.position, Quaternion.identity);
+        iTringle.transform.DOPath(
+           new[] {
+                iTringle.transform.position,
+                new Vector3(iTringle.transform.position.x + 2f,iTringle.transform.position.y + 5f, 0),
+                new Vector3(iTringle.transform.position.x - 2f, iTringle.transform.position.y + 10f, 0),
+                // ï¿½ï¿½ï¿½Ó¸ï¿½ï¿½ï¿½Â·ï¿½ï¿½ï¿½ï¿½
+           }, flyduration, PathType.CatmullRom).SetEase(Ease.Linear).OnComplete(() => SecondAnim());
+    }
+    private void SecondAnim()
+    {
+        title.GetComponent<Image>().DOColor(new Color(1, 1, 1, 1), clearduration);
+        isFinished = true;
+    }
+
     public void Tutorial1()
     {
-        //½Ì³Ì¿ªÊ¼Ê±£¬¿ªÊ¼²¥·ÅÒ»¶ÎÑ­»·µÄÓÐ½ÚÅÄµÄÒôÀÖ
-        //Ã¿Ò»ÅÄÈý½ÇÐÎ¶¶¶¯Ò»´Î
-        //Ã¿µÚËÄÅÄÇ°1000msÈý½ÇÐÎ·¢³öÐ¡¹âÔÎ£¬ÆÁÄ»ÉÏ·½¿ªÊ¼ÔÈ¼ÓËÙÏÂÂäÒ»¸öÐ¡Èý½ÇÐÎ
-        //£¨µÚËÄÅÄÊ±Ð¡Èý½ÇºÍÈý½ÇÖØºÏ£©µÚËÄÅÄÊ±Íæ¼Òµã»÷ÔòÈý½ÇÐÎÉ¢·¢´ó¹âÔÎ£¬Í£Ö¹ÂäÏÂÐ¡Èý½Ç²¢½øÈëTutorial2(),Î´µã»÷Ôò²¥·ÅÐ¡Èý½ÇÐÎMiss()²¢½øÈëÏÂÒ»¸öËÄÅÄÑ­»·
+        //ï¿½Ì³Ì¿ï¿½Ê¼Ê±ï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½Ñ­ï¿½ï¿½ï¿½ï¿½ï¿½Ð½ï¿½ï¿½Äµï¿½ï¿½ï¿½ï¿½ï¿½
+        audioPlayer.Play();
+        //Ã¿Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î¶ï¿½ï¿½ï¿½Ò»ï¿½ï¿½
+        //Ã¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç°100msï¿½ï¿½ï¿½ï¿½ï¿½Î·ï¿½ï¿½ï¿½Ð¡ï¿½ï¿½ï¿½Î£ï¿½ï¿½ï¿½Ä»ï¿½Ï·ï¿½ï¿½ï¿½Ê¼ï¿½È¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½Ð¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+        //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±Ð¡ï¿½ï¿½ï¿½Çºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ØºÏ£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½Òµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É¢ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î£ï¿½Í£Ö¹ï¿½ï¿½ï¿½ï¿½Ð¡ï¿½ï¿½ï¿½Ç²ï¿½ï¿½ï¿½ï¿½ï¿½Tutorial2()
+        //,Î´ï¿½ï¿½ï¿½ï¿½ò²¥·ï¿½Ð¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Miss()ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ­ï¿½ï¿½
     }
     public void Tutorial2()
     {
-        //ÒôÀÖÊÇÑØÓÃTutorial1()µÄÒôÀÖ
-        //Ã¿Ò»ÅÄÈý½ÇÐÎ¶¶¶¯Ò»´Î
-        //Ã¿µÚËÄÅÄÇ°1000msÈý½ÇÐÎ·¢³öÐ¡¹âÔÎ£¬¿ªÊ¼ÔÈ¼ÓËÙÏÂÂäÒ»¸öÐ¡Ô²ÐÎ
-        //µÚÒ»¸öËÄÅÄÖÐ£¬µÚËÄÅÄÊ±Íæ¼ÒÎ´µã»÷ÔòÐ¡Ô²ÐÎMiss()£¬ÖØ¸´µÚÒ»¸öËÄÅÄ £» µã»÷ÔòÈý½ÇÐÎºÍÐ¡Ô²ÐÎBreakUp()£¬Õû¸öÆÁÄ»Ë²¼ä±äºìÍÊÉ«£¬ÖØÐÂÆ®ÉÏÀ´Ò»¸öÈý½ÇÐÎ£¬³öÏÖ·ÛËéÂÖºÍ¼ì²éÇø£¬½øÈëµÚ¶þ¸öËÄÅÄ
-        //µÚ¶þ¸öËÄÅÄÖÐ£¬Miss»òµã»÷Ê¹Èý½ÇÐÎBreakUp()Ôò½øÈëµÚÈý¸öËÄÅÄ£¬ £» Ð¡Ô²ÐÎ±»·ÛËéÂÖBreakUp()Ôò½øÈëµÚËÄ¸öËÄÅÄ
-        //µÚÈý¸öËÄÅÄÖÐ£¬³öÏÖ´Ó·ÛËéÂÖµ½Ð¡Ô²ÐÎµÄÂ·¾¶Ö¸Òý£¬µã»÷Ê¹Èý½ÇÐÎBreakUp()»òMiss()ÔòÖØ¸´µÚÈý¸öËÄÅÄ £» ·ÛËéÂÖÅö×²µ½Ð¡Ô²ÐÎÊ±Ð¡Ô²ÐÎBreakUp()£¬½øÈëµÚËÄ¸öËÄÅÄ
-        //µÚËÄ¸öËÄÅÄÖÐ£¬¸ÄÎªÆ®ÂäÐ¡Èý½ÇÐÎ£¬ËÄÅÄÊ±µã»÷Ôò¡°³É¹¦£¨£©¡±£¬Ð¡Èý½ÇÏûÊ§£¬´óÈý½ÇÉ¢·¢¹âÔÎ£¬½øÈëµÚÎå¸öËÄÅÄ£¬£¨Í¬µÚ¶þ¸öËÄÅÄ£©£» Miss()ÔòÖØ¸´µÚËÄ¸öËÄÅÄ £» Ð¡Èý½ÇÐÎ±»·ÛËéÔòÆÁÄ»Ë²¼ä±äºìÍÊÉ«£¬ÖØ¸´µÚËÄ¸öËÄÅÄ
-        //µÚÎå¸öËÄÅÄÖÐ£¬Miss»òµã»÷Ê¹Èý½ÇÐÎBreakUp()ÔòÖØ¸´µÚÎå¸öËÄÅÄ£¬ £» Ð¡Ô²ÐÎ±»·ÛËéÂÖBreakUp()Ôò½øÈëµÚÁù¸öËÄÅÄ£¨Í¬µÚËÄ¸öËÄÅÄ£©
-        //µÚÁù¸öËÄÅÄÖÐ£¬Miss()ÔòÖØ¸´µÚÁù¸öËÄÅÄ £» ·ÛËéÐ¡Èý½ÇÔòÆÁÄ»Ë²¼ä±äºìÍÊÉ«£¬ÖØ¸´µÚÁù¸öËÄÅÄ £» µã»÷Ôò¡°³É¹¦£¨£©¡±£¬Ð¡Èý½ÇÏûÊ§£¬´óÈý½ÇÉ¢·¢¹âÔÎ£¬Tutorial2()½áÊø£¬isIntroducedÉèÎªtrue
+        //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Tutorial1()ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+        //Ã¿Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î¶ï¿½ï¿½ï¿½Ò»ï¿½ï¿½
+        //Ã¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç°100msï¿½ï¿½ï¿½ï¿½ï¿½Î·ï¿½ï¿½ï¿½Ð¡ï¿½ï¿½ï¿½Î£ï¿½ï¿½ï¿½Ê¼ï¿½È¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½Ð¡Ô²ï¿½ï¿½
+        //ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½Î´ï¿½ï¿½ï¿½ï¿½ï¿½Ð¡Ô²ï¿½ï¿½Miss()ï¿½ï¿½ï¿½Ø¸ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îºï¿½Ð¡Ô²ï¿½ï¿½BreakUp()ï¿½ï¿½
+        //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä»Ë²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É«ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î£ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½ï¿½ï¿½ÖºÍ¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ú¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+        //ï¿½Ú¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð£ï¿½Missï¿½ï¿½ï¿½ï¿½Ê¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½BreakUp()ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ ï¿½ï¿½ Ð¡Ô²ï¿½Î±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½BreakUp()ï¿½ï¿½Ì³Ì½ï¿½ï¿½ï¿½
+        //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð£ï¿½ï¿½ï¿½ï¿½Ö´Ó·ï¿½ï¿½ï¿½ï¿½Öµï¿½Ð¡Ô²ï¿½Îµï¿½Â·ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½BreakUp()ï¿½ï¿½Miss()ï¿½ï¿½ï¿½Ø¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½
+        //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×²ï¿½ï¿½Ð¡Ô²ï¿½ï¿½Ê±Ð¡Ô²ï¿½ï¿½BreakUp()ï¿½ï¿½ï¿½Ì³Ì½ï¿½ï¿½ï¿½
+        //isIntroducedï¿½ï¿½Îªtrue
     }
 
-
-
-
-
-
-    public void SongStart()//¿ªÊ¼²¥·ÅÒôÆµ£¬²¹¶¡Ïä¡¢Â©¶´´úÂë²Ö¡¢ÎÈ¶¨´úÂë²Ö¡¢µ÷ÊÔÌ¨´ÓÆÁÄ»ÍâÆ½»¬ÒÆ¶¯ÖÁÖ¸¶¨Î»ÖÃ
+    public void SongStart()//ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ä¡¢Â©ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¡ï¿½ï¿½È¶ï¿½ï¿½ï¿½ï¿½ï¿½Ö¡ï¿½ï¿½ï¿½ï¿½ï¿½Ì¨ï¿½ï¿½ï¿½ï¿½Ä»ï¿½ï¿½Æ½ï¿½ï¿½ï¿½Æ¶ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½Î»ï¿½ï¿½
     {
+        //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê½ï¿½ï¿½Æµ
         audioPlayer.enabled = true;
-        //SlowMove(²¹¶¡Ïä,³õÎ»ÖÃ£¬Ö¸¶¨Î»ÖÃ£¬ËùÓÃÊ±¼ä);
-        //SlowMove(Â©¶´´úÂë²Ö£¬³õÎ»ÖÃ£¬Ö¸¶¨Î»ÖÃ£¬ËùÓÃÊ±¼ä);
-        //SlowMove(ÎÈ¶¨´úÂë²Ö£¬³õÎ»ÖÃ£¬Ö¸¶¨Î»ÖÃ£¬ËùÓÃÊ±¼ä);
-        //SlowMove(µ÷ÊÔÌ¨£¬³õÎ»ÖÃ£¬Ö¸¶¨Î»ÖÃ£¬ËùÓÃÊ±¼ä);
+        //SlowMove(ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,ï¿½ï¿½Î»ï¿½Ã£ï¿½Ö¸ï¿½ï¿½Î»ï¿½Ã£ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½);
+        //SlowMove(Â©ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö£ï¿½ï¿½ï¿½Î»ï¿½Ã£ï¿½Ö¸ï¿½ï¿½Î»ï¿½Ã£ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½);
+        //SlowMove(ï¿½È¶ï¿½ï¿½ï¿½ï¿½ï¿½Ö£ï¿½ï¿½ï¿½Î»ï¿½Ã£ï¿½Ö¸ï¿½ï¿½Î»ï¿½Ã£ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½);
+        //SlowMove(ï¿½ï¿½ï¿½ï¿½Ì¨ï¿½ï¿½ï¿½ï¿½Î»ï¿½Ã£ï¿½Ö¸ï¿½ï¿½Î»ï¿½Ã£ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½);
+    }
+    public void End()
+    {
+        //ï¿½ï¿½ÆµÆ¬ï¿½ï¿½ï¿½Ð»ï¿½Îªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+        //ï¿½ï¿½ï¿½ï¿½ï¿½ä£¬Â©ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö£ï¿½ï¿½ï¿½ï¿½ï¿½Ì¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È«ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+        //ï¿½ï¿½Ä»ï¿½ï¿½ï¿½Ä³ï¿½ï¿½Ö¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê®ï¿½ï¿½ï¿½ï¿½É«ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É£ï¿½
+        //ï¿½ï¿½ï¿½É¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½Þ¸ï¿½ï¿½Ä´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î´ï¿½ï¿½È¶ï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½Î»ï¿½Ã£ï¿½ï¿½ï¿½aï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î·Éµï¿½a/nï¿½ï¿½ï¿½È£ï¿½nÎªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+        //Ã¿ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î·Éµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É¼ï¿½+1ï¿½ï¿½ï¿½ï¿½ï¿½É¼ï¿½Ð¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½90%Ê±ï¿½ï¿½Ã¿ï¿½ï¿½10%ï¿½ï¿½Ê¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î±ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½É¼ï¿½ï¿½ï¿½ï¿½ï¿½90%Ê±Ã¿ï¿½ï¿½1%ï¿½ï¿½Ê¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î±ï¿½ï¿½
+    }
+
+    private void Update()
+    {      
+        if (audioPlayer.enabled)
+        {
+            nowTime += Time.deltaTime;
+            CheckTime();
+        }
+        //ï¿½ï¿½ï¿½ï¿½ï¿½Ä¶Î¶ï¿½ï¿½ï¿½1.ï¿½Ú¶ï¿½ï¿½Î²ï¿½ï¿½ï¿½ï¿½ê£¬2.ï¿½ï¿½ï¿½ï¿½ï¿½
+        ForthAnim();
+        //ï¿½ï¿½ï¿½ï¿½ï¿½Í´ï¿½ï¿½ï¿½ï¿½È«ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+        if (codeBlockCurrentLine >= codeBlockData.Count || patchCurrentLine >= patchData.Count)
+        {
+            end = true;
+        }
+
+    }
+
+    private void ForthAnim()
+    {
+        if (isFinished && (Input.GetMouseButtonDown(0) || title.GetComponent<Image>().color.a == 1))
+        {
+            //ï¿½ï¿½ï¿½Ä¶Î¶ï¿½ï¿½ï¿½,ï¿½ï¿½ï¿½Ãµï¿½cleardurationï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½É¸ï¿½
+            title.GetComponent<Image>().DOColor(new Color(1, 1, 1, 0), flyduration);
+            iTringle.transform.DOMove(outPoint.position, flyduration).OnComplete(() => Tutorial1());
+        }
     }
 
     private void Update()
     {
-        //ÕýÊ½¿ªÊ¼Ê±£¬Ã¿Ö¡¼ÆÊ±Æ÷ÊµÊ±¸üÐÂ£¬Ã¿Ö¡¼ì²éÊ±¼äµã
+        //ï¿½ï¿½Ê½ï¿½ï¿½Ê¼Ê±ï¿½ï¿½Ã¿Ö¡ï¿½ï¿½Ê±ï¿½ï¿½ÊµÊ±ï¿½ï¿½ï¿½Â£ï¿½Ã¿Ö¡ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½
         if (audioPlayer.enabled)
         {
             Timer();
             CheckTime(nowTime);
         }
     }
-    public float Timer()//¼ÆÊ±Æ÷·µ»Øµ±Ç°Ê±¼ä
+    public float Timer()//ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½Øµï¿½Ç°Ê±ï¿½ï¿½
     {
         nowTime += Time.deltaTime;
         return nowTime;
     }
 
-    private void CheckTime(float nowTime)//¼ì²éÊ±¼äµã
+    private void CheckTime(float nowTime)//ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½
     {
-        if(nowTime==codeJudgmentTime-4000f) //¼ì²éÊ±¼äµã,ÈôÎª´úÂë¿éÅÐ¶¨µãÇ°4000msÔòµ¯³öÒ»¸ö´úÂë¿é
+        if(nowTime==codeJudgmentTime-4000f) //ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½,ï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½ï¿½Ç°4000msï¿½òµ¯³ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         {
-            //µ¯³ö(bdata.blockType)
+            //ï¿½ï¿½ï¿½ï¿½(bdata.blockType)
 
         }
-        if (nowTime == patchJudgmentTime - 1000f) //¼ì²éÊ±¼äµã,ÈôÎª²¹¶¡ÅÐ¶¨µãÇ°1000msÔòµ¯³öÒ»¸ö²¹¶¡
+        if (nowTime == patchJudgmentTime - 1000f) //ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½,ï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½ï¿½Ç°1000msï¿½òµ¯³ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         {
-            //µ¯³ö(pdata.patchType)
+            //ï¿½ï¿½ï¿½ï¿½(pdata.patchType)
         }
 
 
-        //¸ù¾Ý²»Í¬Ê±¼äµã£¬ÁîisOnPathÎªfalse£¬¸øEffectÌá¹©ÊäÈë£¬¿É·Ö¶þº¯ÊýÊµÏÖÐ§¹û
-        //Éú³É´úÂëInstantiate(Ô¤ÖÆÌå,patchBornPos.position,Quaternion.identity);
+        //ï¿½ï¿½ï¿½Ý²ï¿½Í¬Ê±ï¿½ï¿½ã£¬ï¿½ï¿½isOnPathÎªfalseï¿½ï¿½ï¿½ï¿½Effectï¿½á¹©ï¿½ï¿½ï¿½ë£¬ï¿½É·Ö¶ï¿½ï¿½ï¿½ï¿½ï¿½Êµï¿½ï¿½Ð§ï¿½ï¿½
+
+        //Instantiate(tringle,patchBornPos.position,Quaternion.identity);
+        //ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð§ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½
+
+        //ï¿½ï¿½ï¿½ï¿½Â©ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+        //ï¿½Ð¶ï¿½Â©ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+
+        //ï¿½Ð¶Ïµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×¼È·ï¿½ï¿½
+        //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð§
     }
-    public void LoadCodeBlockFromFile(string Path)//ÓÎÏ·¿ªÊ¼Ê±´ÓÖ¸¶¨Â·¾¶+ÎÄ¼þÃû¶ÁÈ¡Excel
+
+    #region ExcelReaderFuction
+    public void LoadCodeBlockFromFile(string Path)//ï¿½ï¿½Ï·ï¿½ï¿½Ê¼Ê±ï¿½ï¿½Ö¸ï¿½ï¿½Â·ï¿½ï¿½+ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½ï¿½È¡Excel
     {
         codeBlockData = CodeBlockExcelReader.ReadExcel(Path);
-        if ( codeBlockData == null || codeBlockData.Count == 0)
+        if (codeBlockData == null || codeBlockData.Count == 0)
         {
             Debug.LogError("NO_Block_DATA_FOUND");
         }
     }
-    public void ReadBlock(string Path)//¶ÁÈ¡Ò»¸öcodeBlockµÄÀàÐÍ£¬ÅÐ¶¨Ê±¼äºÍid
+    public void ReadBlock(string Path)//ï¿½ï¿½È¡Ò»ï¿½ï¿½codeBlockï¿½ï¿½ï¿½ï¿½ï¿½Í£ï¿½ï¿½Ð¶ï¿½Ê±ï¿½ï¿½ï¿½id
     {
-        var bdata = codeBlockData[blockCurrentLine];
+        var bdata = codeBlockData[codeBlockCurrentLine];
         codeBlockID = bdata.codeBlockID;
         codeBlockType = bdata.codeBlockType;
         codeJudgmentTime = float.Parse(bdata.codeJudgmentTime);
-        blockCurrentLine++;
+        codeBlockCurrentLine++;
     }
 
-    public void LoadPatchFromFile(string Path)//ÓÎÏ·¿ªÊ¼Ê±´ÓÖ¸¶¨Â·¾¶+ÎÄ¼þÃû¶ÁÈ¡Excel
+    public void LoadPatchFromFile(string Path)//ï¿½ï¿½Ï·ï¿½ï¿½Ê¼Ê±ï¿½ï¿½Ö¸ï¿½ï¿½Â·ï¿½ï¿½+ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½ï¿½È¡Excel
     {
         patchData = PatchExcelReader.ReadExcel(Path);
         if (codeBlockData == null || codeBlockData.Count == 0)
@@ -139,7 +263,7 @@ public class GameManager : MonoBehaviour
             Debug.LogError("NO_Patch_DATA_FOUND");
         }
     }
-    public void ReadPatch(string Path)//¶ÁÈ¡Ò»¸öpatchÀàÐÍ£¬ÅÐ¶¨Ê±¼äºÍid
+    public void ReadPatch(string Path)//ï¿½ï¿½È¡Ò»ï¿½ï¿½patchï¿½ï¿½ï¿½Í£ï¿½ï¿½Ð¶ï¿½Ê±ï¿½ï¿½ï¿½id
     {
         var pdata = patchData[patchCurrentLine];
         patchID = pdata.patchID;
@@ -147,4 +271,5 @@ public class GameManager : MonoBehaviour
         patchJudgmentTime = float.Parse(pdata.patchJudgmentTime);
         patchJudgmentTime++;
     }
+    #endregion
 }
