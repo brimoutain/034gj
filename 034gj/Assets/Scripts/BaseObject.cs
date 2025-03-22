@@ -8,7 +8,6 @@ using System.Runtime.CompilerServices;
 
 public class BaseObject : MonoBehaviour
 {
-    
     //获取粒子系统
     [SerializeField] private ParticleSystem particle;
     //随机选择曲线
@@ -19,6 +18,8 @@ public class BaseObject : MonoBehaviour
     [SerializeField] private float forceStrength;
     //判断是否在路径上
     public bool isOnPath;
+    //光晕存在时间，需要调试
+    [SerializeField] private float haloTime;
 
     public void Awake()
     {
@@ -108,6 +109,33 @@ public class BaseObject : MonoBehaviour
         Destroy(instance);
     }
 
+    IEnumerator Halo()
+    {
+        GameObject[] obj = new GameObject[10];
+        for(int i =0; i < 10; i++)
+        {
+            obj[i] = BornHalo();
+            //需要调试
+            yield return new WaitForSeconds(.01f);
+        }
+        
+        for(int i = 0; i < 10; i++)
+        {
+            Destroy(obj[i]);
+        }
+    }
+
+    public GameObject BornHalo()
+    {
+        GameObject obj;
+        obj = Instantiate(smallPrefab,transform.position, Quaternion.identity);
+        //光圈扩大，需要调试具体大小
+        obj.transform.localScale = new Vector3(Mathf.SmoothStep(1, 5, haloTime), Mathf.SmoothStep(1, 5, haloTime),obj.transform.localScale.z);
+        //光圈渐渐消失，需要调试
+        obj.GetComponent<SpriteRenderer>().color -= new Color(0,0,0,0);
+        return obj;
+    }
+
     //缓动变色
     public void SlowdownAndChangeColor()
     {
@@ -126,7 +154,7 @@ public class BaseObject : MonoBehaviour
     //光晕效果
     public void HaloEffect()
     {
-
+        
     }
 
     #endregion
