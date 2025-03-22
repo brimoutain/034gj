@@ -54,6 +54,7 @@ public class GameManager : MonoBehaviour
         //第五个四拍中，Miss或点击使三角形BreakUp()则重复第五个四拍， ； 小圆形被粉碎轮BreakUp()则进入第六个四拍（同第四个四拍）
         //第六个四拍中，Miss()则重复第六个四拍 ； 粉碎小三角则屏幕瞬间变红褪色，重复第六个四拍 ； 点击则“成功（）”，小三角消失，大三角散发光晕，Tutorial2()结束，isIntroduced设为true
     }
+
     private void Update()
     {
         //教程结束，开始播放音乐，储存开始时间
