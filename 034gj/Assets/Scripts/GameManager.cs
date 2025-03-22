@@ -17,6 +17,9 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject tringle;
     [SerializeField] private GameObject circle;
 
+    //图形出现的位置
+    [SerializeField] private Transform patchBornPos;
+
     private void Awake()
     {
         audioPlayer = GetComponent<AudioSource>();
@@ -40,9 +43,7 @@ public class GameManager : MonoBehaviour
 
     private void CheckTime()//可能的检查时间点，生成预制体
     {
-        //根据不同时间点，令isOnPath为false，给Effect提供输入，可分二函数
+        //根据不同时间点，令isOnPath为false，给Effect提供输入，可分二函数实现效果
+        //生成代码Instantiate(预制体,patchBornPos.position,Quaternion.identity);
     }
-
-    
-
 }

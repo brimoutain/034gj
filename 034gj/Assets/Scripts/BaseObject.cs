@@ -8,8 +8,7 @@ using System.Runtime.CompilerServices;
 
 public class BaseObject : MonoBehaviour
 {
-    //图形出现的位置
-    [SerializeField] private Transform codeBornPos;
+    
     //获取粒子系统
     [SerializeField] private ParticleSystem particle;
     //随机选择曲线
@@ -23,7 +22,6 @@ public class BaseObject : MonoBehaviour
 
     public void Awake()
     {
-        transform.position = codeBornPos.position;
         //随机生成一个数决定路径
         pathNumber = UnityEngine.Random.Range(1, 4);
         isOnPath = true;
@@ -85,6 +83,7 @@ public class BaseObject : MonoBehaviour
         }
     }
 
+    #region DifferentEffect
     //碎裂效果
     public void BreakEffect()
     {
@@ -103,7 +102,7 @@ public class BaseObject : MonoBehaviour
             UnityEngine.Random.Range(-1f, 1f)
             ).normalized;
         instance.GetComponent<Rigidbody2D>().AddForce(randomDirection * forceStrength, ForceMode2D.Impulse);
-        // 等待0.3秒
+        // 等待0.3秒，需要测试具体效果
         yield return new WaitForSeconds(.3f);
 
         Destroy(instance);
@@ -130,4 +129,5 @@ public class BaseObject : MonoBehaviour
 
     }
 
+    #endregion
 }
