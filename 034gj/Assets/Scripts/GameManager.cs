@@ -38,8 +38,8 @@ public class GameManager : MonoBehaviour
     }
     void Start()//读取Excel数据，开始游戏
     {
-        LoadCodeBlockFromFile("Assets/Resources/2.xlsx");
-        LoadPatchFromFile("Assets/Resources/3.xlsx");
+        LoadCodeBlockFromFile("Assets/Resources/Block.xlsx");
+        LoadPatchFromFile("Assets/Resources/Patch.xlsx");
         StartGame();
     }
     public void StartGame()
