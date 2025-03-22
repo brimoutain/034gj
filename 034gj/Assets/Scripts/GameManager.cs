@@ -71,8 +71,10 @@ public class GameManager : MonoBehaviour
         LoadCodeBlockFromFile("Assets/Resources/2.xlsx");
         LoadPatchFromFile("Assets/Resources/3.xlsx");
         AudioClip audioClip = Resources.Load<AudioClip>("Assets/Resources/");
+        //这段用于测试特效
         GameObject game = Instantiate(tringle, outPoint);
         game.GetComponent<BaseObject>().Effect(2);
+        //
         StartGame();
     }
     public void StartGame()
